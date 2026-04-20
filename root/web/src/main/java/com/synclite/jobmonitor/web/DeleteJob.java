@@ -24,11 +24,7 @@ import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.regex.Pattern;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -60,25 +56,24 @@ public class DeleteJob extends HttpServlet {
 	 * @see HttpServlet#doGet(HttpServletRequest request, HttpServletResponse response)
 	 */
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		doPost(request, response);
+		response.sendRedirect("deleteJob.jsp");
 	}
 
 	/**	  
 	 * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse response)
 	 */
 	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		// TODO Auto-generated method stub
 		try {
+			if (request.getSession().getAttribute("synclite-device-dir") == null) {
+				response.sendRedirect("syncLiteTerms.jsp");
+				return;
+			}
+
 			Path syncLiteDeviceDir = Path.of(request.getSession().getAttribute("synclite-device-dir").toString());
-			String jobName = request.getParameter("job-name").toString();
+			String jobName = InputValidator.requireJobName(request, "job-name", "job name");
 			Path jobPath = syncLiteDeviceDir.resolve(jobName);
-			if (jobName.isBlank()) {
-				throw new ServletException("Please specify a valid job name");			
-			} else {
-				Path srcJobPath = syncLiteDeviceDir.resolve(jobName);
-				if (! Files.exists(srcJobPath)) {
-					throw new ServletException("Job directory path " + srcJobPath + " does not exist for specified job : " + jobName);
-				}
+			if (!Files.exists(jobPath)) {
+				throw new ServletException("Job directory path " + jobPath + " does not exist for specified job : " + jobName);
 			}
 			
 			initTracer(syncLiteDeviceDir);
@@ -116,7 +111,8 @@ public class DeleteJob extends HttpServlet {
 			}
 			if(currentJobPID != 0) {
 				String errorMessage = "Specified job is running with Process ID : " + currentJobPID + ". Please stop the job and then run Delete Job";
-				request.getRequestDispatcher("resetJob.jsp?errorMsg=" + errorMessage).forward(request, response);
+				request.setAttribute("errorMsg", errorMessage);
+				request.getRequestDispatcher("jobError.jsp?jobType=DeleteJob").forward(request, response);
 			} else {
 				this.globalTracer.info("Starting to delete Job : " + jobName + " with job directory : " + jobPath);
 
@@ -154,15 +150,11 @@ public class DeleteJob extends HttpServlet {
 				response.sendRedirect("jobSummary.jsp");
 			}
 		} catch (Exception e) {
-			//System.out.println("exception : " + e);
-			String errorMsg = e.getMessage();
-
 			if (this.globalTracer != null) {
-				this.globalTracer.error("Failed cloning job with error : " + e.getMessage(), e);
+				this.globalTracer.error("Failed deleting job with error : " + e.getMessage(), e);
 			}
-
-			request.getRequestDispatcher("cloneJob.jsp?errorMsg=" + errorMsg).forward(request, response);
-			throw new ServletException(e);
+			request.setAttribute("errorMsg", e.getMessage());
+			request.getRequestDispatcher("deleteJob.jsp").forward(request, response);
 		}
 	}
 	

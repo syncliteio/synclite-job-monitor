@@ -14,6 +14,7 @@
 
 <%@ page language="java" contentType="text/html; charset=ISO-8859-1"
     pageEncoding="ISO-8859-1"%>
+<%@page import="org.owasp.encoder.Encode"%>
 <!DOCTYPE html>
 <html>
 <head>
@@ -27,9 +28,12 @@
 		<h2>Job Status</h2>
 		<%
 		String jobType = request.getParameter("jobType");
-		String errorMsg = request.getParameter("errorMsg");		
+		String errorMsg = (String) request.getAttribute("errorMsg");
+		if (errorMsg == null) {
+			errorMsg = request.getParameter("errorMsg");
+		}
 		if (errorMsg != null) {
-			out.println("<h4 style=\"color: red;\">Failed to execute " + jobType + " job : " + errorMsg + "</h4>");
+			out.println("<h4 style=\"color: red;\">Failed to execute " + Encode.forHtml(jobType) + " job : " + Encode.forHtml(errorMsg) + "</h4>");
 		}
 		%>
 	</div>

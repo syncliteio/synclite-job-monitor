@@ -26,8 +26,6 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.regex.Pattern;
 
 import javax.servlet.ServletException;
@@ -60,46 +58,27 @@ public class CloneJob extends HttpServlet {
 	 * @see HttpServlet#doGet(HttpServletRequest request, HttpServletResponse response)
 	 */
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		doPost(request, response);
+		response.sendRedirect("cloneJob.jsp");
 	}
 
 	/**	  
 	 * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse response)
 	 */
 	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		// TODO Auto-generated method stub
 		try {
+			if (request.getSession().getAttribute("synclite-device-dir") == null) {
+				response.sendRedirect("syncLiteTerms.jsp");
+				return;
+			}
+
 			Path syncLiteDeviceDir = Path.of(request.getSession().getAttribute("synclite-device-dir").toString());
-			String srcJobName = request.getParameter("src-job-name").toString();
-			if (srcJobName.isBlank()) {
-				throw new ServletException("Please specify a valid source job name.");			
-			} else {
-				//Check if specified jobName is in correct format
-				if (srcJobName.length() > 16 ) {
-					throw new ServletException("Source job name must be upto 16 characters in length");
-				}
-				if (!srcJobName.matches("[a-zA-Z0-9-_]+")) {
-					throw new ServletException("Specified source job name is invalid. Allowed characters are alphanumeric characters or hyphens.");
-				}
-				
-				Path srcJobPath = syncLiteDeviceDir.resolve(srcJobName);
-				if (! Files.exists(srcJobPath)) {
-					throw new ServletException("Source job path " + srcJobPath + " does not exist");
-				}
+			String srcJobName = InputValidator.requireJobName(request, "src-job-name", "source job name");
+			Path srcJobPath = syncLiteDeviceDir.resolve(srcJobName);
+			if (!Files.exists(srcJobPath)) {
+				throw new ServletException("Source job path " + srcJobPath + " does not exist");
 			}
 			
-			String tgtJobName = request.getParameter("tgt-job-name").toString();
-			if (tgtJobName.isBlank()) {
-				throw new ServletException("Please specify a valid target job name.");			
-			} else {
-				//Check if specified jobName is in correct format
-				if (tgtJobName.length() > 16 ) {
-					throw new ServletException("Target job name must be upto 16 characters in length");
-				}
-				if (!tgtJobName.matches("[a-zA-Z0-9-_]+")) {
-					throw new ServletException("Specified target job name is invalid. Allowed characters are alphanumeric characters or hyphens.");
-				}
-			}	
+			String tgtJobName = InputValidator.requireJobName(request, "tgt-job-name", "target job name");
 			
 			initTracer(syncLiteDeviceDir);
 
@@ -128,7 +107,6 @@ public class CloneJob extends HttpServlet {
 			}
 			BufferedReader stdout = new BufferedReader(new InputStreamReader(jpsProc.getInputStream()));
 			String line = stdout.readLine();
-			final Path srcJobPath = syncLiteDeviceDir.resolve(srcJobName);
 			while (line != null) {
 				if (line.contains(srcJobPath.toString())) {
 					currentJobPID = Long.valueOf(line.split(" ")[0]);
@@ -137,7 +115,8 @@ public class CloneJob extends HttpServlet {
 			}
 			if(currentJobPID != 0) {
 				String errorMessage = "Specified source job is running with Process ID : " + currentJobPID + ". Please stop the job and then run Clone Job";
-				request.getRequestDispatcher("resetJob.jsp?errorMsg=" + errorMessage).forward(request, response);
+				request.setAttribute("errorMsg", errorMessage);
+				request.getRequestDispatcher("jobError.jsp?jobType=CloneJob").forward(request, response);
 			} else {
 				this.globalTracer.info("Starting to clone Job : " + srcJobName + " to target job : " + tgtJobName + " under job directory : " + syncLiteDeviceDir);
 
@@ -180,15 +159,11 @@ public class CloneJob extends HttpServlet {
 				response.sendRedirect("jobSummary.jsp");
 			}
 		} catch (Exception e) {
-			//System.out.println("exception : " + e);
-			String errorMsg = e.getMessage();
-
 			if (this.globalTracer != null) {
 				this.globalTracer.error("Failed cloning job with error : " + e.getMessage(), e);
 			}
-
-			request.getRequestDispatcher("cloneJob.jsp?errorMsg=" + errorMsg).forward(request, response);
-			throw new ServletException(e);
+			request.setAttribute("errorMsg", e.getMessage());
+			request.getRequestDispatcher("cloneJob.jsp").forward(request, response);
 		}
 	}
 	

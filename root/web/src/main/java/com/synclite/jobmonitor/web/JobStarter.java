@@ -24,7 +24,7 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermission;
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.Statement;
+import java.sql.PreparedStatement;
 import java.util.LinkedHashMap;
 import java.util.Set;
 
@@ -50,6 +50,7 @@ public class JobStarter implements Job {
 
 	
 	@Override
+	@SuppressWarnings("unchecked")
 	public void execute(JobExecutionContext context) throws JobExecutionException {
 
 		String jobName= "";
@@ -70,7 +71,6 @@ public class JobStarter implements Job {
 		String jobRootPath = null;
 		String jobConfPath = null;
 		String schedulerStatsPath = null;
-		String jobScriptName= "";
 		Path jobScriptPath = null;
 		String jobVariablesScriptName = "";
 		String[] jobCmdArray = null;
@@ -192,7 +192,6 @@ public class JobStarter implements Job {
 				if (session.getAttribute("jvm-arguments") != null) {
 					jvmArgs = session.getAttribute("jvm-arguments").toString();
 				}	
-				Process p;
 				if (isWindows()) {
 					if (!jvmArgs.isBlank()) {
 						try {
@@ -207,7 +206,7 @@ public class JobStarter implements Job {
 							throw new ServletException("Failed to write jvm-arguments to " + jobVariablesScriptName + " file : " + e.getMessage(), e);
 						}
 					}
-					p = Runtime.getRuntime().exec(jobCmdArray);						
+					Runtime.getRuntime().exec(jobCmdArray);
 					jobStartTime = System.currentTimeMillis();
 					jobStartStatus = "SUCCESS";
 				} else {
@@ -235,7 +234,7 @@ public class JobStarter implements Job {
 						perms.add(PosixFilePermission.OWNER_EXECUTE);
 						Files.setPosixFilePermissions(jobScriptPath, perms);
 					}
-					p = Runtime.getRuntime().exec(jobCmdArray);
+					Runtime.getRuntime().exec(jobCmdArray);
 					jobStartTime = System.currentTimeMillis();
 					jobStartStatus = "SUCCESS";
 				}
@@ -298,50 +297,28 @@ public class JobStarter implements Job {
 
 	private void addToSchedulerStats(String schedulerStatsPath, long scheduleID, long triggerId, String jobName, String jobType, String jobSubType, long scheduleStartTime, long scheduleEndTime, int jobRunIntervalS, int jobRunDurationS, long jobStartTime, String jobStartStatus, String jobStartStatusDescription) {	
 		String url = "jdbc:sqlite:" + schedulerStatsPath;
-		StringBuilder insertSqlBuilder = new StringBuilder();
-		insertSqlBuilder.append("INSERT INTO statistics(schedule_id, trigger_id, job_name, job_type, job_sub_type, schedule_start_time, schedule_end_time, job_run_interval_s, job_run_duration_s, job_start_time, job_start_status, job_start_status_description, job_stop_time, job_stop_status, job_stop_status_description) VALUES (");
-		insertSqlBuilder.append(scheduleID);
-		insertSqlBuilder.append(",");
-		insertSqlBuilder.append(triggerId);
-		insertSqlBuilder.append(",");
-		insertSqlBuilder.append("'");
-		insertSqlBuilder.append(jobName);
-		insertSqlBuilder.append("'");
-		insertSqlBuilder.append(",");		
-		insertSqlBuilder.append("'");
-		insertSqlBuilder.append(jobType);
-		insertSqlBuilder.append("'");
-		insertSqlBuilder.append(",");		
-		insertSqlBuilder.append("'");
-		insertSqlBuilder.append(jobSubType);
-		insertSqlBuilder.append("'");
-		insertSqlBuilder.append(",");
-		insertSqlBuilder.append(scheduleStartTime);
-		insertSqlBuilder.append(",");
-		insertSqlBuilder.append(scheduleEndTime);		
-		insertSqlBuilder.append(",");
-		insertSqlBuilder.append(jobRunIntervalS);		
-		insertSqlBuilder.append(",");
-		insertSqlBuilder.append(jobRunDurationS);		
-		insertSqlBuilder.append(",");
-		insertSqlBuilder.append(jobStartTime);
-		insertSqlBuilder.append(",'");
-		insertSqlBuilder.append(jobStartStatus);
-		insertSqlBuilder.append("','");
-		insertSqlBuilder.append(jobStartStatusDescription);
-		insertSqlBuilder.append("',");
-		insertSqlBuilder.append(0);
-		insertSqlBuilder.append(",");
-		insertSqlBuilder.append("''");
-		insertSqlBuilder.append(",");
-		insertSqlBuilder.append("'')");
+		String sql = "INSERT INTO statistics(schedule_id, trigger_id, job_name, job_type, job_sub_type, schedule_start_time, schedule_end_time, job_run_interval_s, job_run_duration_s, job_start_time, job_start_status, job_start_status_description, job_stop_time, job_stop_status, job_stop_status_description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-		try (Connection conn = DriverManager.getConnection(url)) {
-			try (Statement stmt = conn.createStatement()) {
-				stmt.execute(insertSqlBuilder.toString());
-			}
+		try (Connection conn = DriverManager.getConnection(url);
+				PreparedStatement pstmt = conn.prepareStatement(sql)) {
+			pstmt.setLong(1, scheduleID);
+			pstmt.setLong(2, triggerId);
+			pstmt.setString(3, jobName);
+			pstmt.setString(4, jobType);
+			pstmt.setString(5, jobSubType);
+			pstmt.setLong(6, scheduleStartTime);
+			pstmt.setLong(7, scheduleEndTime);
+			pstmt.setInt(8, jobRunIntervalS);
+			pstmt.setInt(9, jobRunDurationS);
+			pstmt.setLong(10, jobStartTime);
+			pstmt.setString(11, jobStartStatus);
+			pstmt.setString(12, jobStartStatusDescription);
+			pstmt.setLong(13, 0L);
+			pstmt.setString(14, "");
+			pstmt.setString(15, "");
+			pstmt.executeUpdate();
 		} catch (Exception e) {
-			this.globalTracer.error("Failed to log an entry of job trigger event in the stats file : " + schedulerStatsPath + " : sql : "  + insertSqlBuilder.toString() + ", error : " + e.getMessage(), e);
+			this.globalTracer.error("Failed to log an entry of job trigger event in the stats file : " + schedulerStatsPath + ", error : " + e.getMessage(), e);
 		}
 	}
 

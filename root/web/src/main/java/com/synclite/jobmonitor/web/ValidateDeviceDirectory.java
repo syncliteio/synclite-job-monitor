@@ -44,8 +44,7 @@ public class ValidateDeviceDirectory extends HttpServlet {
 	 * @see HttpServlet#doGet(HttpServletRequest request, HttpServletResponse response)
 	 */
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		// TODO Auto-generated method stub
-		doPost(request, response);
+		response.sendRedirect("selectDeviceDirectory.jsp");
 	}
 
 	/**	  
@@ -53,23 +52,21 @@ public class ValidateDeviceDirectory extends HttpServlet {
 	 */
 	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 		try {
-
-			String syncLiteDeviceDirStr = request.getParameter("synclite-device-dir").toString();
+			String syncLiteDeviceDirStr = InputValidator.requireParameter(
+					request,
+					"synclite-device-dir",
+					"SyncLite Device Directory Path");
 			Path syncLiteDeviceDir;
-			if ((syncLiteDeviceDirStr== null) || syncLiteDeviceDirStr.trim().isEmpty()) {
-				throw new ServletException("\"SyncLite Device Directory Path\" must be specified");
-			} else {
-				syncLiteDeviceDir = Path.of(syncLiteDeviceDirStr);
-				if (! Files.exists(syncLiteDeviceDir)) {
-					try {
-						Files.createDirectories(syncLiteDeviceDir);
-					} catch (Exception e) {
-						throw new ServletException("Failed to create device directory : " + syncLiteDeviceDirStr + " : " + e.getMessage(), e);
-					}
+			syncLiteDeviceDir = Path.of(syncLiteDeviceDirStr).normalize().toAbsolutePath();
+			if (!Files.exists(syncLiteDeviceDir)) {
+				try {
+					Files.createDirectories(syncLiteDeviceDir);
+				} catch (Exception e) {
+					throw new ServletException("Failed to create device directory : " + syncLiteDeviceDir + " : " + e.getMessage(), e);
 				}
-				if (! Files.exists(syncLiteDeviceDir)) {
-					throw new ServletException("Specified \"SyncLite Device Directory Path\" : " + syncLiteDeviceDir + " does not exist, please specify a valid path.");
-				}
+			}
+			if (!Files.exists(syncLiteDeviceDir)) {
+				throw new ServletException("Specified \"SyncLite Device Directory Path\" : " + syncLiteDeviceDir + " does not exist, please specify a valid path.");
 			}
 			
 			if (! syncLiteDeviceDir.toFile().canRead()) {
@@ -80,13 +77,12 @@ public class ValidateDeviceDirectory extends HttpServlet {
 				throw new ServletException("Specified \"SyncLite Device Directory Path\" does not have write permission");
 			}
 
-			request.getSession().setAttribute("synclite-device-dir", syncLiteDeviceDirStr);
+			request.getSession().setAttribute("synclite-device-dir", syncLiteDeviceDir.toString());
 
 			response.sendRedirect("jobSummary.jsp");
 		} catch (Exception e) {
-			String errorMsg = e.getMessage();
-			request.getRequestDispatcher("selectDeviceDirectory.jsp?errorMsg=" + errorMsg).forward(request, response);
-			throw new ServletException(e);
+			request.setAttribute("errorMsg", e.getMessage());
+			request.getRequestDispatcher("selectDeviceDirectory.jsp").forward(request, response);
 		}
 	}
 }

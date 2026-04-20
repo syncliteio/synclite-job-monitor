@@ -16,8 +16,6 @@
 
 package com.synclite.jobmonitor.web;
 
-import java.nio.file.Path;
-
 import org.json.JSONObject;
 
 public class JobSchedule {

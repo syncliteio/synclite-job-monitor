@@ -26,6 +26,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Set;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -39,7 +40,6 @@ import org.apache.log4j.PatternLayout;
 import org.apache.log4j.RollingFileAppender;
 import org.json.JSONArray;
 import org.quartz.DailyTimeIntervalScheduleBuilder;
-import org.quartz.DateBuilder;
 import org.quartz.JobBuilder;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
@@ -70,6 +70,14 @@ public class ConfigureScheduler extends HttpServlet {
 	 * @see HttpServlet#doGet(HttpServletRequest request, HttpServletResponse response)
 	 */
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		response.sendRedirect("configureScheduler.jsp");
+	}
+
+	/**
+	 * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse response)
+	 */
+	@SuppressWarnings("unchecked")
+	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 		try {
 			if (request.getSession().getAttribute("synclite-device-dir") == null) {
 				response.sendRedirect("syncLiteTerms.jsp");			
@@ -78,7 +86,6 @@ public class ConfigureScheduler extends HttpServlet {
 					throw new ServletException("Job Scheduler is running. Please stop it and then configure the scheduler.");					
 				}
 
-				String corePath = Path.of(getServletContext().getRealPath("/"), "WEB-INF", "lib").toString();
 				String syncLiteDeviceDir = request.getSession().getAttribute("synclite-device-dir").toString();
 				Path confPath = Path.of(syncLiteDeviceDir, "synclite_job_schedules.json");
 				String schedulerStatsFile = Path.of(syncLiteDeviceDir, "synclite_job_scheduler_statistics.db").toString();
@@ -86,34 +93,40 @@ public class ConfigureScheduler extends HttpServlet {
 				
 				setupSchedulerStatsFile(schedulerStatsFile);
 				
-				Integer numSchedules = Integer.valueOf(request.getParameter("numSchedules").toString());
-				
-				if (numSchedules == 0) {
-					throw new ServletException("Please add at least one schedule to save and start.");
-				}
+				Integer numSchedules = InputValidator.requireIntInRange(request, "numSchedules", "numSchedules", 1, 500);
 				
 				ArrayList<JobSchedule> jobSchedules = new ArrayList<JobSchedule>();
 				JSONArray jobSchedulesJSONArr  = new JSONArray();
 				for (int idx=1 ; idx <= numSchedules ; ++idx) {
 					JobSchedule jobSchedule = new JobSchedule();
 
-					jobSchedule.scheduleID = Long.valueOf(request.getParameter("synclite-job-scheduler-schedule-id-" + idx));
+					jobSchedule.scheduleID = InputValidator.requireLong(
+							request,
+							"synclite-job-scheduler-schedule-id-" + idx,
+							"schedule id");
 					
-					String jobName = request.getParameter("synclite-job-scheduler-job-name-" + idx);					
+					String jobName = InputValidator.requireJobName(
+							request,
+							"synclite-job-scheduler-job-name-" + idx,
+							"job name for schedule " + idx);
 					if (jobName.equals("NONE")) {
 						throw new ServletException("Please select a valid job for schedule index : " + idx);
 					}
 					jobSchedule.jobName = jobName;
 					
-					String jobType = request.getParameter("synclite-job-scheduler-job-type-" + idx);
+					String jobType = InputValidator.requireEnum(
+							request,
+							"synclite-job-scheduler-job-type-" + idx,
+							"job type",
+							Set.of("DBREADER", "QREADER", "CONSOLIDATOR"));
 					jobSchedule.jobType = jobType;
 					
 					String jobStartHourStr = request.getParameter("synclite-job-scheduler-start-hour-" + idx);					
 					try {
 						if (Integer.valueOf(jobStartHourStr) == null) {
 							throw new ServletException("Please specify a valid numeric value for \"Job Start Hour\" for schedule number : " + idx);
-						} else if ((Integer.valueOf(jobStartHourStr)) < 0 || (Integer.valueOf(jobStartHourStr) > 24)) {
-							throw new ServletException("Please specify a value between 0 and 24 for \"Job Start Hour\" for schedule number : " + idx);
+						} else if ((Integer.valueOf(jobStartHourStr)) < 0 || (Integer.valueOf(jobStartHourStr) > 23)) {
+							throw new ServletException("Please specify a value between 0 and 23 for \"Job Start Hour\" for schedule number : " + idx);
 						}
 					} catch (NumberFormatException e) {
 						throw new ServletException("Please specify a valid numeric value for \"Job Start Hour\" for schedule number : " + idx);
@@ -124,8 +137,8 @@ public class ConfigureScheduler extends HttpServlet {
 					try {
 						if (Integer.valueOf(jobStartMinuteStr) == null) {
 							throw new ServletException("Please specify a valid numeric value for \"Job Start Minute\" for schedule number : " + idx);
-						} else if ((Integer.valueOf(jobStartMinuteStr)) < 0 || (Integer.valueOf(jobStartMinuteStr) > 60)) {
-							throw new ServletException("Please specify a value between 0 and 24 for \"Job Start Minute\" for schedule number : " + idx);
+						} else if ((Integer.valueOf(jobStartMinuteStr)) < 0 || (Integer.valueOf(jobStartMinuteStr) > 59)) {
+							throw new ServletException("Please specify a value between 0 and 59 for \"Job Start Minute\" for schedule number : " + idx);
 						}
 					} catch (NumberFormatException e) {
 						throw new ServletException("Please specify a valid numeric value for \"Job Start Minute\" for schedule number : " + idx);
@@ -137,8 +150,8 @@ public class ConfigureScheduler extends HttpServlet {
 					try {
 						if (Integer.valueOf(jobEndHourStr) == null) {
 							throw new ServletException("Please specify a valid numeric value for \"Job End Hour\" for schedule number : " + idx);
-						} else if ((Integer.valueOf(jobEndHourStr)) < 0 || (Integer.valueOf(jobEndHourStr) > 24)) {
-							throw new ServletException("Please specify a value between 0 and 24 for \"Job End Hour\" for schedule number : " + idx);
+						} else if ((Integer.valueOf(jobEndHourStr)) < 0 || (Integer.valueOf(jobEndHourStr) > 23)) {
+							throw new ServletException("Please specify a value between 0 and 23 for \"Job End Hour\" for schedule number : " + idx);
 						}
 
 						if (Integer.valueOf(jobEndHourStr) < Integer.valueOf(jobStartHourStr)) {
@@ -153,8 +166,8 @@ public class ConfigureScheduler extends HttpServlet {
 					try {
 						if (Integer.valueOf(jobEndMinuteStr) == null) {
 							throw new ServletException("Please specify a valid numeric value for \"Job End Minute\" for schedule number : " + idx);
-						} else if ((Integer.valueOf(jobEndMinuteStr)) < 0 || (Integer.valueOf(jobEndMinuteStr) > 60)) {
-							throw new ServletException("Please specify a value between 0 and 24 for \"Job End Minute\" for schedule number : " + idx);
+						} else if ((Integer.valueOf(jobEndMinuteStr)) < 0 || (Integer.valueOf(jobEndMinuteStr) > 59)) {
+							throw new ServletException("Please specify a value between 0 and 59 for \"Job End Minute\" for schedule number : " + idx);
 						}
 						if (Integer.valueOf(jobEndHourStr) == Integer.valueOf(jobStartHourStr)) {
 							if (Integer.valueOf(jobEndMinuteStr) < Integer.valueOf(jobStartMinuteStr)) {
@@ -179,7 +192,11 @@ public class ConfigureScheduler extends HttpServlet {
 					}
 					jobSchedule.jobRunDuration = Integer.valueOf(jobRunDurationStr);
 
-					String jobRunDurationUnit = request.getParameter("synclite-job-scheduler-job-run-duration-unit-" + idx);
+					String jobRunDurationUnit = InputValidator.requireEnum(
+							request,
+							"synclite-job-scheduler-job-run-duration-unit-" + idx,
+							"job run duration unit",
+							Set.of("SECONDS", "MINUTES", "HOURS"));
 					jobSchedule.jobRunDurationUnit = jobRunDurationUnit;
 
 					String jobRunIntervalStr = request.getParameter("synclite-job-scheduler-job-run-interval-" + idx);
@@ -194,10 +211,18 @@ public class ConfigureScheduler extends HttpServlet {
 					}
 					jobSchedule.jobRunInterval = Integer.valueOf(jobRunIntervalStr);
 
-					String jobRunIntervalUnit = request.getParameter("synclite-job-scheduler-job-run-interval-unit-" + idx);
+					String jobRunIntervalUnit = InputValidator.requireEnum(
+							request,
+							"synclite-job-scheduler-job-run-interval-unit-" + idx,
+							"job run interval unit",
+							Set.of("SECONDS", "MINUTES", "HOURS"));
 					jobSchedule.jobRunIntervalUnit = jobRunIntervalUnit;
 
-					String jobSubType = request.getParameter("synclite-job-scheduler-job-sub-type-" + idx);
+					String jobSubType = InputValidator.requireEnum(
+							request,
+							"synclite-job-scheduler-job-sub-type-" + idx,
+							"job sub-type",
+							Set.of("READ", "DELETE-SYNC"));
 					
 					if (jobType.equals("QREADER") || jobType.equals("CONSOLIDATOR")) {
 						if (! jobSubType.equals("READ")) {
@@ -238,7 +263,7 @@ public class ConfigureScheduler extends HttpServlet {
 					long scheduleID = jobSchedule.scheduleID;
 					Integer jobRunDurationS = getDurationInSeconds(jobSchedule.jobRunDuration, jobSchedule.jobRunDurationUnit);
 					long scheduleStartTime = getTimeInMillis(jobSchedule.scheduleStartHour, jobSchedule.scheduleStartMinute);
-					long scheduleEndTime = getTimeInMillis(jobSchedule.scheduleStartHour, jobSchedule.scheduleEndMinute);
+					long scheduleEndTime = getTimeInMillis(jobSchedule.scheduleEndHour, jobSchedule.scheduleEndMinute);
 					Integer jobRunIntervalS= getDurationInSeconds(jobSchedule.jobRunInterval, jobSchedule.jobRunIntervalUnit); 
 							
 					JobDataMap jobDataMap = new JobDataMap();
@@ -348,9 +373,11 @@ public class ConfigureScheduler extends HttpServlet {
 				response.sendRedirect("dashboard.jsp");
 			}
 		} catch (Exception e) {
-			String errorMsg = e.getMessage();
-			this.globalTracer.error("Failed to configure and schedule job : " + e.getMessage(), e);
-			request.getRequestDispatcher("configureScheduler.jsp?errorMsg=" + errorMsg).forward(request, response);
+			if (this.globalTracer != null) {
+				this.globalTracer.error("Failed to configure and schedule job : " + e.getMessage(), e);
+			}
+			request.setAttribute("errorMsg", e.getMessage());
+			request.getRequestDispatcher("configureScheduler.jsp").forward(request, response);
 		}
 	}
 
@@ -373,13 +400,6 @@ public class ConfigureScheduler extends HttpServlet {
 			globalTracer.error("Failed to write configurations to schedules json file : " + confPath + " : " + e.getMessage(), e);
 			throw new ServletException("Failed to write configurations to schedules json file : " + confPath + " : " + e.getMessage(), e);
 		}
-	}
-
-	/**
-	 * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse response)
-	 */
-	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		doGet(request, response);
 	}
 
 	private final void initTracer(Path workDir) {

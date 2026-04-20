@@ -21,7 +21,7 @@ import java.io.InputStreamReader;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.Statement;
+import java.sql.PreparedStatement;
 
 import javax.servlet.http.HttpSession;
 
@@ -97,9 +97,9 @@ public class JobStopper implements Job {
 			//Start if the job is not found
 			if(currentJobPID > 0) {
 				if (isWindows()) {
-					Runtime.getRuntime().exec("taskkill /F /PID " + currentJobPID);
+					Runtime.getRuntime().exec(new String[] {"taskkill", "/F", "/PID", String.valueOf(currentJobPID)});
 				} else {
-					Runtime.getRuntime().exec("kill -9 " + currentJobPID);
+					Runtime.getRuntime().exec(new String[] {"kill", "-9", String.valueOf(currentJobPID)});
 				}
 				jobStopTime = System.currentTimeMillis();
 				jobStopStatus = "SUCCESS";
@@ -131,21 +131,18 @@ public class JobStopper implements Job {
 
 	private void updateSchedulerStats(String schedulerStatsPath, long scheduleID, long triggerId, long jobStopTime, String jobStopStatus, String jobStopStatusDescription) {	
 		String url = "jdbc:sqlite:" + schedulerStatsPath;
-		StringBuilder updateSqlBuilder = new StringBuilder();
-		updateSqlBuilder.append("UPDATE statistics SET ");
-		updateSqlBuilder.append("job_stop_time = ").append(jobStopTime).append(", ");
-		updateSqlBuilder.append("job_stop_status = '").append(jobStopStatus).append("', ");
-		updateSqlBuilder.append("job_stop_status_description = '").append(jobStopStatusDescription).append("' ");
-		updateSqlBuilder.append("WHERE ");
-		updateSqlBuilder.append("schedule_id = ").append(scheduleID).append(" AND ");
-		updateSqlBuilder.append("trigger_id = ").append(triggerId);
-	
-		try (Connection conn = DriverManager.getConnection(url)) {
-			try (Statement stmt = conn.createStatement()) {
-				stmt.execute(updateSqlBuilder.toString());
-			}
+		String sql = "UPDATE statistics SET job_stop_time = ?, job_stop_status = ?, job_stop_status_description = ? WHERE schedule_id = ? AND trigger_id = ?";
+
+		try (Connection conn = DriverManager.getConnection(url);
+				PreparedStatement pstmt = conn.prepareStatement(sql)) {
+			pstmt.setLong(1, jobStopTime);
+			pstmt.setString(2, jobStopStatus);
+			pstmt.setString(3, jobStopStatusDescription);
+			pstmt.setLong(4, scheduleID);
+			pstmt.setLong(5, triggerId);
+			pstmt.executeUpdate();
 		} catch (Exception e) {
-			this.globalTracer.error("Failed to update a job trigger event entry in stats db file : " + schedulerStatsPath + " : sql : " + updateSqlBuilder.toString() + ", error : "+ e.getMessage(), e);
+			this.globalTracer.error("Failed to update a job trigger event entry in stats db file : " + schedulerStatsPath + ", error : "+ e.getMessage(), e);
 		}
 	}
 

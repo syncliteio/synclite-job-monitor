@@ -35,6 +35,7 @@
 <%@page import="com.synclite.jobmonitor.web.JobInfo"%>
 <%@page import="org.json.JSONObject"%>
 <%@page import="org.json.JSONArray"%>
+<%@page import="org.owasp.encoder.Encode"%>
 
 <!DOCTYPE html>
 <html>
@@ -122,6 +123,11 @@ function autoRefresh() {
 			Integer numDBReaderJobs = 0;
 			Integer numQReaderJobs = 0;
 			Integer numConsolidatorJobs = 0;
+			String csrfToken = (String) session.getAttribute("csrfToken");
+			if (csrfToken == null) {
+				csrfToken = java.util.UUID.randomUUID().toString();
+				session.setAttribute("csrfToken", csrfToken);
+			}
 			try {
 				if (request.getParameter("jobName") != null) {
 					jobName = request.getParameter("jobName").trim();
@@ -296,17 +302,18 @@ function autoRefresh() {
 
 			} catch (Exception e) {
 				errorMsg = "Failed to load SyncLite job information from base directory : " + syncliteDeviceDir.toString() + " : " + e.getMessage();
-				out.println("<h4 style=\"color: red;\">" + errorMsg + "</h4>");
+				out.println("<h4 style=\"color: red;\">" + Encode.forHtml(errorMsg) + "</h4>");
 				throw new javax.servlet.jsp.SkipPageException();		
 			}
 
 		%>
 			<center>
 				<form name="tableForm" id="tableForm" method="post">
+					<input type="hidden" name="csrfToken" value="<%=Encode.forHtmlAttribute(csrfToken)%>"/>
 					<table>
 						<tr>
 							<td>
-								Job Name <input type="text" name = "jobName" id = "jobName" value = <%= jobName%>>					 
+								Job Name <input type="text" name = "jobName" id = "jobName" value = "<%=Encode.forHtmlAttribute(jobName)%>">					 
 							</td>
 
 							<td>Job Type <select id="jobType" name="jobType">
@@ -394,9 +401,9 @@ function autoRefresh() {
 
 							out.println("<tr>");
 							out.println("<td>" + idx + "</td>");
-							out.println("<td><a href=\"" + job.url + "\" target=\"_blank\">" + job.name + "</a></td>");
-							out.println("<td>" + job.typeDisplayName + "</td>");
-							out.println("<td>" + job.status+ "</td>");
+									out.println("<td><a href=\"" + Encode.forHtmlAttribute(job.url) + "\" target=\"_blank\">" + Encode.forHtml(job.name) + "</a></td>");
+									out.println("<td>" + Encode.forHtml(job.typeDisplayName) + "</td>");
+									out.println("<td>" + Encode.forHtml(job.status)+ "</td>");
 							if (job.status.equals("RUNNING")) {
 								out.println("<td>" + job.pid+ "</td>");
 							} else {
