@@ -50,6 +50,13 @@ public class StopScheduler extends HttpServlet {
 	 * @see HttpServlet#doGet(HttpServletRequest request, HttpServletResponse response)
 	 */
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		response.sendRedirect("dashboard.jsp");
+	}
+
+	/**
+	 * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse response)
+	 */
+	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 		try {
 			if (request.getSession().getAttribute("synclite-device-dir") == null) {
 				response.sendRedirect("syncLiteTerms.jsp");
@@ -78,17 +85,12 @@ public class StopScheduler extends HttpServlet {
 				response.sendRedirect("dashboard.jsp");
 			}
 		} catch (Exception e) {
-			String errorMsg = e.getMessage();
-			this.globalTracer.error("Failed to stop job scheduler : " + e.getMessage(), e);
-			request.getRequestDispatcher("jobError.jsp?jobType=StopReadJobScheduler&errorMsg=" + errorMsg).forward(request, response);
+			if (this.globalTracer != null) {
+				this.globalTracer.error("Failed to stop job scheduler : " + e.getMessage(), e);
+			}
+			request.setAttribute("errorMsg", e.getMessage());
+			request.getRequestDispatcher("jobError.jsp?jobType=StopReadJobScheduler").forward(request, response);
 		}
-	}
-
-	/**
-	 * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse response)
-	 */
-	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		doGet(request, response);
 	}
 
 	private final void initTracer(Path workDir) {

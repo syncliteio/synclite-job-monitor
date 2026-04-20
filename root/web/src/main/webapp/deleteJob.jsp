@@ -21,6 +21,7 @@
 <%@page import="java.util.List"%>
 <%@page import="java.util.ArrayList"%>
 <%@page import="java.util.HashMap"%>
+<%@page import="org.owasp.encoder.Encode"%>
 <%@ page language="java" contentType="text/html; charset=ISO-8859-1"
 	pageEncoding="ISO-8859-1"%>
 <%@ page import="java.sql.*"%>
@@ -38,12 +39,21 @@
 
 
 <%
-String errorMsg = request.getParameter("errorMsg");
+String errorMsg = (String) request.getAttribute("errorMsg");
+if (errorMsg == null) {
+	errorMsg = request.getParameter("errorMsg");
+}
 
 String jobName = "";
 if (request.getParameter("job-name") != null) {
 	jobName = request.getParameter("job-name").toString();
 } 
+
+String csrfToken = (String) session.getAttribute("csrfToken");
+if (csrfToken == null) {
+	csrfToken = java.util.UUID.randomUUID().toString();
+	session.setAttribute("csrfToken", csrfToken);
+}
 
 %>
 
@@ -64,11 +74,12 @@ if (request.getParameter("job-name") != null) {
 		}
 
 		if (errorMsg != null) {
-			out.println("<h4 style=\"color: red;\">" + errorMsg + "</h4>");
+			out.println("<h4 style=\"color: red;\">" + Encode.forHtml(errorMsg) + "</h4>");
 		}
 		%>
 		
 		<form action="${pageContext.request.contextPath}/deleteJob" method="post">
+			<input type="hidden" name="csrfToken" value="<%=Encode.forHtmlAttribute(csrfToken)%>"/>
 			<table>
 				<tbody>
 					<tr>
@@ -76,7 +87,7 @@ if (request.getParameter("job-name") != null) {
 					</tr>
 					<tr>
 						<td>Job Name</td>
-						<td><input type="text" size = 30 id="job-name" name="job-name" value="<%=jobName%>" title="Specify job name to delete"/></td>
+						<td><input type="text" size = 30 id="job-name" name="job-name" value="<%=Encode.forHtmlAttribute(jobName)%>" title="Specify job name to delete"/></td>
 					</tr>
 			</table>
 			<center>

@@ -19,11 +19,6 @@ package com.synclite.jobmonitor.web;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.Statement;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -39,17 +34,6 @@ import org.apache.log4j.PatternLayout;
 import org.apache.log4j.RollingFileAppender;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.quartz.DailyTimeIntervalScheduleBuilder;
-import org.quartz.DateBuilder;
-import org.quartz.JobBuilder;
-import org.quartz.JobDataMap;
-import org.quartz.JobDetail;
-import org.quartz.Scheduler;
-import org.quartz.SchedulerFactory;
-import org.quartz.TimeOfDay;
-import org.quartz.Trigger;
-import org.quartz.TriggerBuilder;
-import org.quartz.impl.StdSchedulerFactory;
 
 /**
  * Servlet implementation class StartJob
@@ -71,6 +55,10 @@ public class DeleteSchedules extends HttpServlet {
 	 * @see HttpServlet#doGet(HttpServletRequest request, HttpServletResponse response)
 	 */
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		response.sendRedirect("configureScheduler.jsp");
+	}
+
+	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 		try {
 			if (request.getSession().getAttribute("synclite-device-dir") == null) {
 				response.sendRedirect("syncLiteTerms.jsp");			
@@ -85,7 +73,7 @@ public class DeleteSchedules extends HttpServlet {
 
 				initTracer(Path.of(syncLiteDeviceDir));
 				
-				Integer numSchedules = Integer.valueOf(request.getParameter("numSchedules").toString());
+				Integer numSchedules = InputValidator.requireIntInRange(request, "numSchedules", "numSchedules", 1, 500);
 
 				if (numSchedules == 0) {
 					throw new ServletException("No job schedules to delete.");
@@ -94,7 +82,10 @@ public class DeleteSchedules extends HttpServlet {
 				ArrayList<Long> schedulesToDelete = new ArrayList<Long>();
 				for (int idx=1 ; idx <= numSchedules ; ++idx) {
 					if (request.getParameter("select-" + idx) != null) {
-						Long scheduleID = Long.valueOf(request.getParameter("synclite-job-scheduler-schedule-id-" + idx));
+						Long scheduleID = InputValidator.requireLong(
+								request,
+								"synclite-job-scheduler-schedule-id-" + idx,
+								"schedule id");
 						schedulesToDelete.add(scheduleID);
 					}
 				}
@@ -108,16 +99,15 @@ public class DeleteSchedules extends HttpServlet {
 				response.sendRedirect("configureScheduler.jsp");
 			}
 		} catch (Exception e) {
-			String errorMsg = e.getMessage();
-			this.globalTracer.error("Failed to delete job schedules : " + e.getMessage(), e);
-			request.getRequestDispatcher("configureScheduler.jsp?errorMsg=" + errorMsg).forward(request, response);
+			if (this.globalTracer != null) {
+				this.globalTracer.error("Failed to delete job schedules : " + e.getMessage(), e);
+			}
+			request.setAttribute("errorMsg", e.getMessage());
+			request.getRequestDispatcher("configureScheduler.jsp").forward(request, response);
 		}
 	}
 
-	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		doGet(request, response);
-	}
-
+	@SuppressWarnings("unchecked")
 	private void deleteSchedules(HttpServletRequest request, Path confPath, ArrayList<Long> schedulesToDelete) throws ServletException {
 		try {
 			JSONArray currentSchedules = null;

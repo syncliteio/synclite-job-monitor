@@ -25,6 +25,7 @@
 <%@page import="java.time.LocalDateTime"%>
 <%@page import="java.time.ZoneId"%>
 <%@page import="java.time.format.DateTimeFormatter"%>
+<%@page import="org.owasp.encoder.Encode"%>
 
 <!DOCTYPE html>
 <html>
@@ -66,18 +67,25 @@
 				showScheduleDetails = request.getParameter("showScheduleDetails").toString();
 			}
 
+			String csrfToken = (String) session.getAttribute("csrfToken");
+			if (csrfToken == null) {
+				csrfToken = java.util.UUID.randomUUID().toString();
+				session.setAttribute("csrfToken", csrfToken);
+			}
+
 			Class.forName("org.sqlite.JDBC");
 		%>
 			<center>
 				<form name="tableForm" id="tableForm" method="post">
+					<input type="hidden" name="csrfToken" value="<%=Encode.forHtmlAttribute(csrfToken)%>"/>
 					<table>
 						<tr>
 							<td>
-								Showing Most Recent <input type="number" name = "numRecords" id = "numRecords" value = <%= numRecords%>> Records						 
+								Showing Most Recent <input type="number" name = "numRecords" id = "numRecords" value = "<%=Encode.forHtmlAttribute(String.valueOf(numRecords))%>"> Records						 
 							</td>
 							<td>
 								Show Schedule Details 
-								<select id="showScheduleDetails" name = "showScheduleDetails"  value = <%= showScheduleDetails%>>
+								<select id="showScheduleDetails" name = "showScheduleDetails"  value = "<%=Encode.forHtmlAttribute(showScheduleDetails)%>">
 								<% 
 									if (showScheduleDetails.equals("true")) {
 										out.println("<option value=\"true\" selected>true</option>");
@@ -187,7 +195,7 @@
 								}
 							}
 						} catch(Exception e) {
-							out.println("<h4 style=\"color: red;\">Failed to read scheduler statistics : " + e.getMessage() + ". Please refresh the page.</h4>");
+							out.println("<h4 style=\"color: red;\">Failed to read scheduler statistics : " + Encode.forHtml(e.getMessage()) + ". Please refresh the page.</h4>");
 						}
 					%>
 			</table>			

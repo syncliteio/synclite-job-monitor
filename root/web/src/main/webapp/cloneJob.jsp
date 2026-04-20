@@ -21,6 +21,7 @@
 <%@page import="java.util.List"%>
 <%@page import="java.util.ArrayList"%>
 <%@page import="java.util.HashMap"%>
+<%@page import="org.owasp.encoder.Encode"%>
 <%@ page language="java" contentType="text/html; charset=ISO-8859-1"
 	pageEncoding="ISO-8859-1"%>
 <%@ page import="java.sql.*"%>
@@ -38,7 +39,10 @@
 
 
 <%
-String errorMsg = request.getParameter("errorMsg");
+String errorMsg = (String) request.getAttribute("errorMsg");
+if (errorMsg == null) {
+	errorMsg = request.getParameter("errorMsg");
+}
 
 String srcJobName = "";
 if (request.getParameter("src-job-name") != null) {
@@ -48,6 +52,12 @@ if (request.getParameter("src-job-name") != null) {
 String tgtJobName = "";
 if (request.getParameter("tgt-job-name") != null) {
 	tgtJobName = request.getParameter("tgt-job-name").toString();
+}
+
+String csrfToken = (String) session.getAttribute("csrfToken");
+if (csrfToken == null) {
+	csrfToken = java.util.UUID.randomUUID().toString();
+	session.setAttribute("csrfToken", csrfToken);
 }
 
 %>
@@ -69,20 +79,21 @@ if (request.getParameter("tgt-job-name") != null) {
 		}
 
 		if (errorMsg != null) {
-			out.println("<h4 style=\"color: red;\">" + errorMsg + "</h4>");
+			out.println("<h4 style=\"color: red;\">" + Encode.forHtml(errorMsg) + "</h4>");
 		}
 		%>
 
 		<form action="${pageContext.request.contextPath}/cloneJob" method="post">
+			<input type="hidden" name="csrfToken" value="<%=Encode.forHtmlAttribute(csrfToken)%>"/>
 			<table>
 				<tbody>
 					<tr>
 						<td>Source Job Name</td>
-						<td><input type="text" size = 30 id="src-job-name" name="src-job-name" value="<%=srcJobName%>" title="Specify source job name to clone from"/></td>
+						<td><input type="text" size = 30 id="src-job-name" name="src-job-name" value="<%=Encode.forHtmlAttribute(srcJobName)%>" title="Specify source job name to clone from"/></td>
 					</tr>
 					<tr>
 						<td>Destination Job Name</td>
-						<td><input type="text" size = 30 id="tgt-job-name" name="tgt-job-name" value="<%=tgtJobName%>" title="Specify target job name to clone to"/></td>
+						<td><input type="text" size = 30 id="tgt-job-name" name="tgt-job-name" value="<%=Encode.forHtmlAttribute(tgtJobName)%>" title="Specify target job name to clone to"/></td>
 					</tr>
 
 			</table>

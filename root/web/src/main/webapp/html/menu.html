@@ -13,7 +13,10 @@
 		</button>
 		<div class="expand-list">
 			<a href="configureScheduler.jsp">Configure and Start</a>
-			<a href="${pageContext.request.contextPath}/stopScheduler">Stop Scheduler</a>
+			<form action="${pageContext.request.contextPath}/stopScheduler" method="post" class="menu-post-form">
+				<input type="hidden" name="csrfToken" value="<%=org.owasp.encoder.Encode.forHtmlAttribute(String.valueOf(session.getAttribute("csrfToken")))%>"/>
+				<button type="submit" class="menu-link-button">Stop Scheduler</button>
+			</form>
 			<a href="schedulerHistory.jsp">Scheduler History</a>		
 		</div>
 		<button class="expand-btn">

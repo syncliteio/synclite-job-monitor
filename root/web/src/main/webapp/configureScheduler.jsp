@@ -21,6 +21,7 @@
 <%@page import="java.util.HashMap"%>
 <%@page import="java.util.HashSet"%>
 <%@page import="com.synclite.jobmonitor.web.JobSchedule"%>
+<%@page import="org.owasp.encoder.Encode"%>
 <%@ page language="java" contentType="text/html; charset=ISO-8859-1"
 	pageEncoding="ISO-8859-1"%>
 <!DOCTYPE html>
@@ -48,7 +49,15 @@
 
 		
 			String syncLiteDeviceDir = session.getAttribute("synclite-device-dir").toString();
-			String errorMsg = request.getParameter("errorMsg");
+			String errorMsg = (String) request.getAttribute("errorMsg");
+			if (errorMsg == null) {
+				errorMsg = request.getParameter("errorMsg");
+			}
+			String csrfToken = (String) session.getAttribute("csrfToken");
+			if (csrfToken == null) {
+				csrfToken = java.util.UUID.randomUUID().toString();
+				session.setAttribute("csrfToken", csrfToken);
+			}
 			Path confPath = Path.of(syncLiteDeviceDir, "synclite_job_schedules.json");
 			JSONArray jobSchedulesJsonArray = null;
 			try {
@@ -59,12 +68,12 @@
 					jobSchedulesJsonArray = new JSONArray();
 				}
 			} catch(Exception e) {
-				out.println("<h4 style=\"color: red;\">Failed to read existing schedule information from file : " + confPath + " : " + e.getMessage() + "</h4>");
+				out.println("<h4 style=\"color: red;\">Failed to read existing schedule information from file : " + Encode.forHtml(confPath.toString()) + " : " + Encode.forHtml(e.getMessage()) + "</h4>");
 				throw new SkipPageException();
 			}
 
 			if (errorMsg != null) {
-				out.println("<h4 style=\"color: red;\">Failed to save and start SyncLite job scheduler : " + errorMsg + "</h4>");
+				out.println("<h4 style=\"color: red;\">Failed to save and start SyncLite job scheduler : " + Encode.forHtml(errorMsg) + "</h4>");
 			}
 
 			
@@ -208,11 +217,15 @@
 			
 		%>		
 		<form action="${pageContext.request.contextPath}/configureScheduler" method="post">
+			<input type="hidden" name="csrfToken" value="<%=Encode.forHtmlAttribute(csrfToken)%>"/>
 			<table>
 				<tr>
-					<td colspan="8">
+					<td colspan="9">
 						Note: Please stop the job scheduler if already running before setting up job scheduler configurations.
 					</td>
+				</tr>
+				<tr>
+					<td colspan="9" class="helper-text">Selected rows for delete: <span id="selected-count">0</span></td>
 				</tr>
 				
 				<tr>
@@ -233,22 +246,22 @@
 					out.println("<td><input type=\"checkbox\" id=\"select-" + idx + "\" name=\"select-" + idx + "\" value=\"" + "1" + "\"/></td>");
 					
 					out.println("<td>" + idx + "</td>");
-					out.println("<input type=\"hidden\" id=\"synclite-job-scheduler-schedule-id-" + idx + "\" name=\"synclite-job-scheduler-schedule-id-" + idx + "\" value=\"" + properties.get("synclite-job-scheduler-schedule-id-" + idx) + "\"/>");
+					out.println("<input type=\"hidden\" id=\"synclite-job-scheduler-schedule-id-" + idx + "\" name=\"synclite-job-scheduler-schedule-id-" + idx + "\" value=\"" + Encode.forHtmlAttribute(properties.get("synclite-job-scheduler-schedule-id-" + idx)) + "\"/>");
 					out.println("<td>");
-					out.println("<select id=\"synclite-job-scheduler-job-name-" + idx +  "\" name=\"synclite-job-scheduler-job-name-" + idx + "\" value=\"" + properties.get("synclite-job-scheduler-job-name-" + idx) + "\" title=\"Select SyncLite job.\">");
+					out.println("<select id=\"synclite-job-scheduler-job-name-" + idx +  "\" name=\"synclite-job-scheduler-job-name-" + idx + "\" value=\"" + Encode.forHtmlAttribute(properties.get("synclite-job-scheduler-job-name-" + idx)) + "\" title=\"Select SyncLite job.\">");
 					out.println("<option value=\"NONE\">NONE</option>");
 					for (String jobName : jobNames) {
 						if (properties.get("synclite-job-scheduler-job-name-" + idx).equals(jobName)) {
-							out.println("<option value=\"" + jobName + "\" selected>"+  jobName + "</option>");
+							out.println("<option value=\"" + Encode.forHtmlAttribute(jobName) + "\" selected>"+  Encode.forHtml(jobName) + "</option>");
 						} else {
-							out.println("<option value=\"" + jobName + "\">"+  jobName + "</option>");
+							out.println("<option value=\"" + Encode.forHtmlAttribute(jobName) + "\">"+  Encode.forHtml(jobName) + "</option>");
 						}						
 					}
 					out.println("</select>");
 					out.println("</td>");
 					
 					out.println("<td>");
-					out.println("<select id=\"synclite-job-scheduler-job-type-" + idx +  "\" name=\"synclite-job-scheduler-job-type-" + idx + "\" value=\"" + properties.get("synclite-job-scheduler-job-type-" + idx) + "\" title=\"Select SyncLite job type.\">");
+					out.println("<select id=\"synclite-job-scheduler-job-type-" + idx +  "\" name=\"synclite-job-scheduler-job-type-" + idx + "\" value=\"" + Encode.forHtmlAttribute(properties.get("synclite-job-scheduler-job-type-" + idx)) + "\" title=\"Select SyncLite job type.\">");
 					if (properties.get("synclite-job-scheduler-job-type-" + idx).equals("DBREADER")) {
 						out.println("<option value=\"DBREADER\" selected>DBReader</option>");
 					} else {
@@ -268,18 +281,18 @@
 					out.println("</td>");
 
 					out.println("<td>");
-					out.print("<input type=\"text\" size=\"2\" id=\"synclite-job-scheduler-start-hour-" + idx + "\" name=\"synclite-job-scheduler-start-hour-" + idx + "\" value=\"" + properties.get("synclite-job-scheduler-start-hour-" + idx) + "\" title=\"Specify SyncLite dbreader job scheduler start hour.\"/>");
-					out.print(":<input type=\"text\" size=\"2\" id=\"synclite-job-scheduler-start-minute-" + idx + "\" name=\"synclite-job-scheduler-start-minute-" + idx + "\" value=\"" + properties.get("synclite-job-scheduler-start-minute-" + idx) + "\" title=\"Specify SyncLite dbreader job scheduler start minute.\"/>");				
+					out.print("<input type=\"number\" min=\"0\" max=\"23\" step=\"1\" size=\"2\" id=\"synclite-job-scheduler-start-hour-" + idx + "\" name=\"synclite-job-scheduler-start-hour-" + idx + "\" value=\"" + Encode.forHtmlAttribute(properties.get("synclite-job-scheduler-start-hour-" + idx)) + "\" title=\"Specify SyncLite job scheduler start hour (0-23).\"/>");
+					out.print(":<input type=\"number\" min=\"0\" max=\"59\" step=\"1\" size=\"2\" id=\"synclite-job-scheduler-start-minute-" + idx + "\" name=\"synclite-job-scheduler-start-minute-" + idx + "\" value=\"" + Encode.forHtmlAttribute(properties.get("synclite-job-scheduler-start-minute-" + idx)) + "\" title=\"Specify SyncLite job scheduler start minute (0-59).\"/>");				
 					out.println("</td>");
 
 					out.println("<td>");
-					out.print("<input type=\"text\" size=\"2\" id=\"synclite-job-scheduler-end-hour-" + idx + "\" name=\"synclite-job-scheduler-end-hour-" + idx + "\" value=\"" + properties.get("synclite-job-scheduler-end-hour-" + idx) + "\" title=\"Specify SyncLite dbreader job scheduler end hour.\"/>");
-					out.print(":<input type=\"text\" size=\"2\" id=\"synclite-job-scheduler-end-minute-" + idx + "\" name=\"synclite-job-scheduler-end-minute-" + idx + "\" value=\"" + properties.get("synclite-job-scheduler-end-minute-" + idx) + "\" title=\"Specify SyncLite dbreader job scheduler end minute.\"/>");				
+					out.print("<input type=\"number\" min=\"0\" max=\"23\" step=\"1\" size=\"2\" id=\"synclite-job-scheduler-end-hour-" + idx + "\" name=\"synclite-job-scheduler-end-hour-" + idx + "\" value=\"" + Encode.forHtmlAttribute(properties.get("synclite-job-scheduler-end-hour-" + idx)) + "\" title=\"Specify SyncLite job scheduler end hour (0-23).\"/>");
+					out.print(":<input type=\"number\" min=\"0\" max=\"59\" step=\"1\" size=\"2\" id=\"synclite-job-scheduler-end-minute-" + idx + "\" name=\"synclite-job-scheduler-end-minute-" + idx + "\" value=\"" + Encode.forHtmlAttribute(properties.get("synclite-job-scheduler-end-minute-" + idx)) + "\" title=\"Specify SyncLite job scheduler end minute (0-59).\"/>");				
 					out.println("</td>");
 
 					out.println("<td>");
-					out.println("<input type=\"text\" size=\"4\" id=\"synclite-job-scheduler-job-run-duration-" + idx + "\" name=\"synclite-job-scheduler-job-run-duration-" + idx + "\" value=\"" + properties.get("synclite-job-scheduler-job-run-duration-" + idx) + "\" title=\"Specify SyncLite dbreader job run duration. Value 0 indicates keep the job running once started until stopped.\"/>");
-					out.println("<select id=\"synclite-job-scheduler-job-run-duration-unit-" + idx +  "\" name=\"synclite-job-scheduler-job-run-duration-unit-" + idx + "\" value=\"" + properties.get("synclite-job-scheduler-job-run-duration-unit-" + idx) + "\" title=\"Select DBReader job run duration unit\">");
+					out.println("<input type=\"number\" min=\"0\" step=\"1\" size=\"4\" id=\"synclite-job-scheduler-job-run-duration-" + idx + "\" name=\"synclite-job-scheduler-job-run-duration-" + idx + "\" value=\"" + Encode.forHtmlAttribute(properties.get("synclite-job-scheduler-job-run-duration-" + idx)) + "\" title=\"Specify SyncLite job run duration. Value 0 keeps the job running until stopped.\"/>");
+					out.println("<select id=\"synclite-job-scheduler-job-run-duration-unit-" + idx +  "\" name=\"synclite-job-scheduler-job-run-duration-unit-" + idx + "\" value=\"" + Encode.forHtmlAttribute(properties.get("synclite-job-scheduler-job-run-duration-unit-" + idx)) + "\" title=\"Select job run duration unit\">");
 					if (properties.get("synclite-job-scheduler-job-run-duration-unit-" + idx).equals("SECONDS")) {
 						out.println("<option value=\"SECONDS\" selected>SECONDS</option>");
 					} else {
@@ -299,8 +312,8 @@
 					out.println("</td>");
 					
 					out.println("<td>");
-					out.println("<input type=\"text\" size=\"4\" id=\"synclite-job-scheduler-job-run-interval-" + idx + "\" name=\"synclite-job-scheduler-job-run-interval-" + idx + "\" value=\"" + properties.get("synclite-job-scheduler-job-run-interval-" + idx) + "\" title=\"Specify SyncLite dbreader job run interval. Value 0 indicates no periodic starting of the job.\"/>");
-					out.println("<select id=\"synclite-job-scheduler-job-run-interval-unit-" + idx +  "\" name=\"synclite-job-scheduler-job-run-interval-unit-" + idx + "\" value=\"" + properties.get("synclite-job-scheduler-job-run-interval-unit-" + idx) + "\" title=\"Select DBReader job run interval unit\">");
+					out.println("<input type=\"number\" min=\"0\" step=\"1\" size=\"4\" id=\"synclite-job-scheduler-job-run-interval-" + idx + "\" name=\"synclite-job-scheduler-job-run-interval-" + idx + "\" value=\"" + Encode.forHtmlAttribute(properties.get("synclite-job-scheduler-job-run-interval-" + idx)) + "\" title=\"Specify SyncLite job run interval. Value 0 disables periodic restarts.\"/>");
+					out.println("<select id=\"synclite-job-scheduler-job-run-interval-unit-" + idx +  "\" name=\"synclite-job-scheduler-job-run-interval-unit-" + idx + "\" value=\"" + Encode.forHtmlAttribute(properties.get("synclite-job-scheduler-job-run-interval-unit-" + idx)) + "\" title=\"Select job run interval unit\">");
 					if (properties.get("synclite-job-scheduler-job-run-interval-unit-" + idx).equals("SECONDS")) {
 						out.println("<option value=\"SECONDS\" selected>SECONDS</option>");
 					} else {
@@ -320,7 +333,7 @@
 					out.println("</td>");
 
 					out.println("<td>");
-					out.println("<select id=\"synclite-job-scheduler-job-sub-type-" + idx +  "\" name=\"synclite-job-scheduler-job-sub-type-" + idx + "\" value=\"" + properties.get("synclite-job-scheduler-job-type-" + idx) + "\" title=\"Select DBReader job sub-type to schedule.\">");
+					out.println("<select id=\"synclite-job-scheduler-job-sub-type-" + idx +  "\" name=\"synclite-job-scheduler-job-sub-type-" + idx + "\" value=\"" + Encode.forHtmlAttribute(properties.get("synclite-job-scheduler-job-type-" + idx)) + "\" title=\"Select job sub-type to schedule.\">");
 					if (properties.get("synclite-job-scheduler-job-sub-type-" + idx).equals("READ")) {
 						out.println("<option value=\"READ\" selected>READ/SYNC</option>");
 					} else {
@@ -336,13 +349,13 @@
 					out.println("</tr>");
 					}
 				%>
-				 <input type="hidden" name ="numSchedules" id ="numSchedules" value="<%=numSchedules%>">
+				 <input type="hidden" name ="numSchedules" id ="numSchedules" value="<%=Encode.forHtmlAttribute(String.valueOf(numSchedules))%>">
 			</table>
 			
 			<center>
-				<button type="button" name="add" onclick="this.form.action='configureScheduler.jsp?numSchedules=<%=numSchedules + 1%>'; this.form.submit();">Add New Schedule</button>
-				<button type="button" name="delete" onclick="this.form.action='deleteSchedules'; this.form.submit();">Delete Schedules</button>
-				<button type="submit" name="next">Save And Start</button>
+				<button type="button" class="btn-secondary" name="add" onclick="this.form.action='configureScheduler.jsp?numSchedules=<%=numSchedules + 1%>'; this.form.submit();">Add New Schedule</button>
+				<button type="button" class="btn-danger" name="delete" onclick="confirmDeleteSelected(this.form)">Delete Selected</button>
+				<button type="submit" class="btn-primary" name="next">Save And Start</button>
 			</center>			
 		</form>
 	</div>
@@ -359,7 +372,31 @@
 	  selectIndividualCheckboxes.forEach(function(checkbox) {
 	    checkbox.checked = isChecked;
 	  });
+	  updateSelectedCount();
 	});
+
+	selectIndividualCheckboxes.forEach(function(checkbox) {
+	  checkbox.addEventListener("change", updateSelectedCount);
+	});
+
+	function updateSelectedCount() {
+	  const selected = document.querySelectorAll('input[type="checkbox"][name^="select-"]:checked').length;
+	  document.getElementById("selected-count").innerText = selected;
+	}
+
+	function confirmDeleteSelected(form) {
+	  const selected = document.querySelectorAll('input[type="checkbox"][name^="select-"]:checked').length;
+	  if (selected === 0) {
+	    alert("Please select at least one schedule to delete.");
+	    return;
+	  }
+	  if (confirm("Delete " + selected + " selected schedule(s)?")) {
+	    form.action = 'deleteSchedules';
+	    form.submit();
+	  }
+	}
+
+	updateSelectedCount();
 </script>
 
 </body>

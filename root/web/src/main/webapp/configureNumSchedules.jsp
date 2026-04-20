@@ -17,6 +17,7 @@
 <%@page import="java.io.BufferedReader"%>
 <%@page import="java.io.FileReader"%>
 <%@page import="java.util.HashMap"%>
+<%@page import="org.owasp.encoder.Encode"%>
 <%@ page language="java" contentType="text/html; charset=ISO-8859-1"
 	pageEncoding="ISO-8859-1"%>
 <!DOCTYPE html>
@@ -31,18 +32,27 @@
 <body>
 	<%@include file="html/menu.html"%>
 	<div class="main">
-		<h2>Configure DBReader Job Schedules</h2>
+		<h2>Configure Job Schedules</h2>
 		<%
-			if ((session.getAttribute("job-status") == null) || (session.getAttribute("synclite-device-dir") == null)) {
-				out.println("<h4 style=\"color: red;\"> Please configure and start/load a DBReader job.</h4>");
+			if (session.getAttribute("synclite-device-dir") == null) {
+				out.println("<h4 style=\"color: red;\"> Please load job monitor first.</h4>");
 				throw new javax.servlet.jsp.SkipPageException();		
 			}
 		
 			String syncLiteDeviceDir = session.getAttribute("synclite-device-dir").toString();
-			String errorMsg = request.getParameter("errorMsg");
+			String errorMsg = (String) request.getAttribute("errorMsg");
+			if (errorMsg == null) {
+				errorMsg = request.getParameter("errorMsg");
+			}
+
+			String csrfToken = (String) session.getAttribute("csrfToken");
+			if (csrfToken == null) {
+				csrfToken = java.util.UUID.randomUUID().toString();
+				session.setAttribute("csrfToken", csrfToken);
+			}
 
 			if (errorMsg != null) {
-				out.println("<h4 style=\"color: red;\">Failed to load job : " + errorMsg + "</h4>");
+				out.println("<h4 style=\"color: red;\">Failed to load job : " + Encode.forHtml(errorMsg) + "</h4>");
 			}
 
 			String numSchedules = "1";
@@ -91,21 +101,25 @@
 		%>
 	
 		<form action="${pageContext.request.contextPath}/validateNumSchedules" method="post">
+			<input type="hidden" name="csrfToken" value="<%=Encode.forHtmlAttribute(csrfToken)%>"/>
 			<table>
 				<tbody>
 					<tr>
 						<td>Number of Schedules</td>
 						<td><input type="number" size=5 id="synclite-dbreader-scheduler-num-schedules"
 							name="synclite-dbreader-scheduler-num-schedules"
-							value="<%=numSchedules%>"
+							value="<%=Encode.forHtmlAttribute(numSchedules)%>"
 							title="Specify number of schedules"/>
 						</td>
+					</tr>
+					<tr>
+						<td colspan="2" class="helper-text">Tip: Start with a small number (for example, 1 to 5), then add more schedules from the next page.</td>
 					</tr>
 
 				</tbody>
 			</table>
 			<center>
-				<button type="submit" name="next">Next</button>
+				<button type="submit" name="next" class="btn-primary">Next</button>
 			</center>			
 		</form>
 	</div>

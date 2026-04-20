@@ -21,6 +21,7 @@
 <%@page import="java.io.BufferedReader"%>
 <%@page import="java.io.InputStreamReader"%>
 <%@page import="java.nio.file.Files"%>
+<%@page import="org.owasp.encoder.Encode"%>
 <%@ page language="java" contentType="text/html; charset=ISO-8859-1"
 	pageEncoding="ISO-8859-1"%>
 <%@ page import="java.sql.*"%>
@@ -73,6 +74,11 @@ function autoRefresh() {
 				<tbody>
 					<%	
 					String syncliteDeviceDir = session.getAttribute("synclite-device-dir").toString();
+					String csrfToken = (String) session.getAttribute("csrfToken");
+					if (csrfToken == null) {
+						csrfToken = java.util.UUID.randomUUID().toString();
+						session.setAttribute("csrfToken", csrfToken);
+					}
 					int refreshInterval = 30;
 					if (request.getParameter("refresh-interval") != null) {
 						try {
@@ -112,6 +118,7 @@ function autoRefresh() {
                 	out.println("<td></td>");
                 	out.println("<td>");
                 	out.println("<form name=\"dashboardForm\" method=\"post\" action=\"dashboard.jsp\">");
+	                	out.println("<input type=\"hidden\" name=\"csrfToken\" value=\"" + Encode.forHtmlAttribute(csrfToken) + "\"/>");
                 	out.println("<div class=\"pagination\">");
                 	out.println("REFRESH IN ");
                 	out.println("<input type=\"text\" id=\"refresh-interval\" name=\"refresh-interval\" value =\"" + refreshInterval + "\" size=\"1\" onchange=\"autoRefreshSetTimeout()\">");
@@ -123,7 +130,7 @@ function autoRefresh() {
 
                 	out.println("<tr>");
                 	out.println("<td> SyncLite Base Directory</td>");
-                	out.println("<td>" + syncliteDeviceDir + "</td>");
+	                	out.println("<td>" + Encode.forHtml(syncliteDeviceDir) + "</td>");
                 	out.println("</tr>");
 
                 	out.println("<tr>");

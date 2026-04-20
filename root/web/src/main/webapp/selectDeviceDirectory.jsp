@@ -14,6 +14,7 @@
 
 <%@page import="java.nio.file.Files"%>
 <%@page import="java.nio.file.Path"%>
+<%@page import="org.owasp.encoder.Encode"%>
 <%@ page language="java" contentType="text/html; charset=ISO-8859-1"
 	pageEncoding="ISO-8859-1"%>
 <!DOCTYPE html>
@@ -26,7 +27,16 @@
 
 <% 
 	String jobName = request.getParameter("job-name");
-	String errorMsg = request.getParameter("errorMsg");
+	String errorMsg = (String) request.getAttribute("errorMsg");
+	if (errorMsg == null) {
+		errorMsg = request.getParameter("errorMsg");
+	}
+
+	String csrfToken = (String) session.getAttribute("csrfToken");
+	if (csrfToken == null) {
+		csrfToken = java.util.UUID.randomUUID().toString();
+		session.setAttribute("csrfToken", csrfToken);
+	}
 	
 	String syncLiteDeviceDir = request.getParameter("synclite-device-dir");
 	if (syncLiteDeviceDir == null) {	
@@ -41,16 +51,17 @@
 		<h2>Configure SyncLite Job Monitor</h2>
 		<%	
 		if (errorMsg != null) {
-			out.println("<h4 style=\"color: red;\">" + errorMsg + "</h4>");
+			out.println("<h4 style=\"color: red;\">" + Encode.forHtml(errorMsg) + "</h4>");
 		}
 		%>
 	
 		<form method="post" action="validateDeviceDirectory">
+			<input type="hidden" name="csrfToken" value="<%=Encode.forHtmlAttribute(csrfToken)%>"/>
 			<table>
 				<tbody>
 					<tr>
 						<td>SyncLite Base Directory</td>
-						<td><input type="text" size = 60 id="synclite-device-dir" name="synclite-device-dir" value="<%=syncLiteDeviceDir%>" title="Specify a work directory for SyncLite dbreader to store SyncLite devices holding extracted data frpom source database."/></td>
+						<td><input type="text" size = 60 id="synclite-device-dir" name="synclite-device-dir" value="<%=Encode.forHtmlAttribute(syncLiteDeviceDir)%>" title="Specify a work directory for SyncLite DBReader to store SyncLite devices holding extracted data from source database."/></td>
 					</tr>
 				</tbody>
 			</table>
