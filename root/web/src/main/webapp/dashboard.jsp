@@ -22,8 +22,8 @@
 <%@page import="java.io.InputStreamReader"%>
 <%@page import="java.nio.file.Files"%>
 <%@page import="org.owasp.encoder.Encode"%>
-<%@ page language="java" contentType="text/html; charset=ISO-8859-1"
-	pageEncoding="ISO-8859-1"%>
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+	pageEncoding="UTF-8"%>
 <%@ page import="java.sql.*"%>
 <%@ page import="org.sqlite.*"%>
 <!DOCTYPE html>
@@ -100,8 +100,12 @@ function autoRefresh() {
 					if (session.getAttribute("numConsolidatorJobs") != null) {
 						numConsolidatorJobs = Integer.valueOf(session.getAttribute("numConsolidatorJobs").toString());
 					}
+					Integer numDBJobs = 0;
+					if (session.getAttribute("numDBJobs") != null) {
+						numDBJobs = Integer.valueOf(session.getAttribute("numDBJobs").toString());
+					}
 					
-					Integer numTotalJobs = numDBReaderJobs + numQReaderJobs + numConsolidatorJobs;
+					Integer numTotalJobs = numDBReaderJobs + numQReaderJobs + numConsolidatorJobs + numDBJobs;
 
 					String scheduleStatus = "STOPPED";
 					if (session.getAttribute("syncite-job-starter-scheduler") != null) {
@@ -152,6 +156,11 @@ function autoRefresh() {
                 	out.println("<td> Consolidator Jobs </td>");
                 	out.println("<td><a href=\"jobSummary.jsp?jobType=CONSOLIDATOR\">" + numConsolidatorJobs + "</a></td>");
                 	out.println("</tr>");
+
+					out.println("<tr>");
+					out.println("<td> DB Jobs </td>");
+					out.println("<td><a href=\"jobSummary.jsp?jobType=DB\">" + numDBJobs + "</a></td>");
+					out.println("</tr>");
 
                 	out.println("<tr>");
                 	out.println("<td> Job Scheduler Status </td>");

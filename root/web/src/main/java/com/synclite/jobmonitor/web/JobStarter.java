@@ -74,6 +74,8 @@ public class JobStarter implements Job {
 		Path jobScriptPath = null;
 		String jobVariablesScriptName = "";
 		String[] jobCmdArray = null;
+		String jobCmd = "";
+		String scriptName = "";
 		String corePath = ""; 
 		
 		try {
@@ -100,12 +102,26 @@ public class JobStarter implements Job {
 			schedulerStatsPath = Path.of(syncLiteDeviceDir, "synclite_job_scheduler_statistics.db").toString();
 			
 			switch(jobType) {
+			case "DB":
+				jobCmd = "read";
+				if (isWindows()) {
+					jobVariablesScriptName = "synclite-variables.bat";
+					scriptName = "synclite-db.bat";
+				} else {
+					jobVariablesScriptName = "synclite-variables.sh";
+					scriptName = "synclite-db.sh";
+				}
+				corePath = session.getAttribute("dbCorePath").toString();
+				jobScriptPath = Path.of(corePath, scriptName);
+				jobCmdArray = new String[] {jobScriptPath.toString(), "--config", jobConfPath};
+				break;
+
 			case "DBREADER":
-				String jobCmd = "read";
+				jobCmd = "read";
 				if (jobSubType.equals("DELETE-SYNC")) {
 					jobCmd = "delete-sync";
 				}
-				String scriptName = "";
+				scriptName = "";
 				if (isWindows()) {
 					jobVariablesScriptName = "synclite-dbreader-variables.bat";
 					scriptName = "synclite-dbreader.bat";
@@ -139,7 +155,7 @@ public class JobStarter implements Job {
 					jobVariablesScriptName = "synclite-variables.bat";
 					scriptName = "synclite-consolidator.bat";
 				} else {
-					jobVariablesScriptName = "synclite-qreader-variables.sh";
+					jobVariablesScriptName = "synclite-variables.sh";
 					scriptName = "synclite-consolidator.sh";				
 				}
 				corePath = session.getAttribute("consolidatorCorePath").toString();

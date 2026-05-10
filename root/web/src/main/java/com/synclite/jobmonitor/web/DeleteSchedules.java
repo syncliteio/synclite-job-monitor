@@ -98,12 +98,22 @@ public class DeleteSchedules extends HttpServlet {
 				
 				response.sendRedirect("configureScheduler.jsp");
 			}
-		} catch (Exception e) {
+		} catch (ServletException e) {
+			response.setStatus(400);
 			if (this.globalTracer != null) {
 				this.globalTracer.error("Failed to delete job schedules : " + e.getMessage(), e);
 			}
 			request.setAttribute("errorMsg", e.getMessage());
 			request.getRequestDispatcher("configureScheduler.jsp").forward(request, response);
+		
+		} catch (Exception e) {
+			response.setStatus(500);
+			if (this.globalTracer != null) {
+				this.globalTracer.error("Failed to delete job schedules : " + e.getMessage(), e);
+			}
+			request.setAttribute("errorMsg", e.getMessage());
+			request.getRequestDispatcher("configureScheduler.jsp").forward(request, response);
+		
 		}
 	}
 

@@ -158,12 +158,22 @@ public class CloneJob extends HttpServlet {
 
 				response.sendRedirect("jobSummary.jsp");
 			}
-		} catch (Exception e) {
+		} catch (ServletException e) {
+			response.setStatus(400);
 			if (this.globalTracer != null) {
 				this.globalTracer.error("Failed cloning job with error : " + e.getMessage(), e);
 			}
 			request.setAttribute("errorMsg", e.getMessage());
 			request.getRequestDispatcher("cloneJob.jsp").forward(request, response);
+		
+		} catch (Exception e) {
+			response.setStatus(500);
+			if (this.globalTracer != null) {
+				this.globalTracer.error("Failed cloning job with error : " + e.getMessage(), e);
+			}
+			request.setAttribute("errorMsg", e.getMessage());
+			request.getRequestDispatcher("cloneJob.jsp").forward(request, response);
+		
 		}
 	}
 	
