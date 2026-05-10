@@ -22,8 +22,8 @@
 <%@page import="java.util.HashSet"%>
 <%@page import="com.synclite.jobmonitor.web.JobSchedule"%>
 <%@page import="org.owasp.encoder.Encode"%>
-<%@ page language="java" contentType="text/html; charset=ISO-8859-1"
-	pageEncoding="ISO-8859-1"%>
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+	pageEncoding="UTF-8"%>
 <!DOCTYPE html>
 <html>
 <head>
@@ -276,6 +276,11 @@
 						out.println("<option value=\"CONSOLIDATOR\" selected>Consolidator</option>");
 					} else {
 						out.println("<option value=\"CONSOLIDATOR\">Consolidator</option>");
+					}
+					if (properties.get("synclite-job-scheduler-job-type-" + idx).equals("DB")) {
+						out.println("<option value=\"DB\" selected>DB</option>");
+					} else {
+						out.println("<option value=\"DB\">DB</option>");
 					}
 					out.println("</select>");
 					out.println("</td>");

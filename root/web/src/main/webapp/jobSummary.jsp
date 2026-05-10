@@ -16,8 +16,8 @@
 <%@page import="java.net.URLEncoder"%>
 <%@page import="java.nio.file.Path"%>
 <%@page import="java.nio.file.Files"%>
-<%@ page language="java" contentType="text/html; charset=ISO-8859-1"
-	pageEncoding="ISO-8859-1"%>
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+	pageEncoding="UTF-8"%>
 <%@ page import="java.sql.*"%>
 <%@ page import="org.sqlite.*"%>
 <%@page import="org.apache.commons.io.FileUtils"%>
@@ -89,6 +89,9 @@ function autoRefresh() {
 
 			String qReaderURL = currentURL;
 			String qReaderAppName = "synclite-qreader";
+
+			String dbURL = currentURL;
+			String dbAppName = "synclite-db";
 			
 			if (session.getAttribute("synclite-product-version") != null) {
 				String currentProductVersion = session.getAttribute("synclite-product-version").toString();
@@ -101,15 +104,20 @@ function autoRefresh() {
 					
 					qReaderURL = prefix + "/" + "synclite-qreader-" + currentProductVersion + "/loadJob";
 					qReaderAppName = "synclite-qreader-" + currentProductVersion;
+
+					dbURL = prefix + "/" + "synclite-db-" + currentProductVersion + "/loadJob";
+					dbAppName = "synclite-db-" + currentProductVersion;
 				} else {
 					consolidatorURL = prefix + "/" + "synclite-consolidator" + "/loadJob"; 
 					dbReaderURL = prefix + "/" + "synclite-dbreader" + "/loadJob";
 					qReaderURL = prefix + "/" + "synclite-qreader" + "/loadJob";
+					dbURL = prefix + "/" + "synclite-db" + "/loadJob";
 				}
 			}
 			String consolidatorCorePath = Path.of(Path.of(getServletContext().getRealPath("/")).getParent().toString(), consolidatorAppName, "WEB-INF", "lib").toString();
 			String dbReaderCorePath = Path.of(Path.of(getServletContext().getRealPath("/")).getParent().toString(), dbReaderAppName, "WEB-INF", "lib").toString();
 			String qReaderCorePath = Path.of(Path.of(getServletContext().getRealPath("/")).getParent().toString(), qReaderAppName, "WEB-INF", "lib").toString();
+			String dbCorePath = Path.of(Path.of(getServletContext().getRealPath("/")).getParent().toString(), dbAppName, "WEB-INF", "lib").toString();
 			
 			String errorMsg = "";
 			Path syncliteDeviceDir = Path.of(session.getAttribute("synclite-device-dir").toString());
@@ -123,6 +131,7 @@ function autoRefresh() {
 			Integer numDBReaderJobs = 0;
 			Integer numQReaderJobs = 0;
 			Integer numConsolidatorJobs = 0;
+			Integer numDBJobs = 0;
 			String csrfToken = (String) session.getAttribute("csrfToken");
 			if (csrfToken == null) {
 				csrfToken = java.util.UUID.randomUUID().toString();
@@ -169,6 +178,24 @@ function autoRefresh() {
 						if (Files.exists(dbDir)) {						
 							Path dbReaderConfigFilepath = dbDir.resolve("synclite_dbreader.conf");
 							Path qReaderConfigFilePath = dbDir.resolve("synclite_qreader.conf");
+							Path dbConfigFilePath = dbDir.resolve("synclite_db.conf");
+
+							if (Files.exists(dbConfigFilePath)) {
+								JobInfo jobInfo = new JobInfo();
+								jobInfo.name = jobDir.toPath().getFileName().toString();
+								jobInfo.confPath = dbConfigFilePath;
+								jobInfo.rootPath = dbDir;
+								jobInfo.type = "DB";
+								jobInfo.componentName = "com.synclite.db.Main";
+								jobInfo.typeDisplayName = "SyncLite DB";
+								jobInfo.url = dbURL + "?db-root=" + URLEncoder.encode(dbDir.toString(), Charset.defaultCharset());
+								jobInfo.status = "STOPPED";
+								jobInfo.pid = 0L;
+								jobInfo.numSchedules = 0;
+								jobInfoMap.put(jobInfo.name + ":" + jobInfo.type, jobInfo);
+								jobNames.add(jobInfo.name);
+								++numDBJobs;
+							}
 							
 							if (Files.exists(dbReaderConfigFilepath)) {
 								JobInfo jobInfo = new JobInfo();
@@ -295,9 +322,11 @@ function autoRefresh() {
 	            session.setAttribute("numDBReaderJobs", numDBReaderJobs);
 	            session.setAttribute("numQReaderJobs", numQReaderJobs);
 	            session.setAttribute("numConsolidatorJobs", numConsolidatorJobs);
+	            session.setAttribute("numDBJobs", numDBJobs);
 	            session.setAttribute("consolidatorCorePath", consolidatorCorePath);
 	            session.setAttribute("dbReaderCorePath", dbReaderCorePath);
 	            session.setAttribute("qReaderCorePath", qReaderCorePath);
+	            session.setAttribute("dbCorePath", dbCorePath);
 	            session.setAttribute("totalNumSchedules", totalNumSchedules);
 
 			} catch (Exception e) {
@@ -332,6 +361,11 @@ function autoRefresh() {
 	                             	out.println("<option value=\"CONSOLIDATOR\" selected>SyncLite Consolidator</option>");
 	                             } else {
 	                             	out.println("<option value=\"CONSOLIDATOR\">SyncLite Consolidator</option>");
+	                             }
+	                             if (jobType.equals("DB")) {
+	                             	out.println("<option value=\"DB\" selected>SyncLite DB</option>");
+	                             } else {
+	                             	out.println("<option value=\"DB\">SyncLite DB</option>");
 	                             }
 	                             if (jobType.equals("ALL")) {
 	                             	out.println("<option value=\"ALL\" selected>All</option>");

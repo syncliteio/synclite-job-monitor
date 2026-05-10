@@ -118,7 +118,7 @@ public class ConfigureScheduler extends HttpServlet {
 							request,
 							"synclite-job-scheduler-job-type-" + idx,
 							"job type",
-							Set.of("DBREADER", "QREADER", "CONSOLIDATOR"));
+							Set.of("DBREADER", "QREADER", "CONSOLIDATOR", "DB"));
 					jobSchedule.jobType = jobType;
 					
 					String jobStartHourStr = request.getParameter("synclite-job-scheduler-start-hour-" + idx);					
@@ -224,7 +224,7 @@ public class ConfigureScheduler extends HttpServlet {
 							"job sub-type",
 							Set.of("READ", "DELETE-SYNC"));
 					
-					if (jobType.equals("QREADER") || jobType.equals("CONSOLIDATOR")) {
+					if (jobType.equals("QREADER") || jobType.equals("CONSOLIDATOR") || jobType.equals("DB")) {
 						if (! jobSubType.equals("READ")) {
 							throw new ServletException("Job sub-type " + jobSubType + " invalid for job type : " + jobType);
 						}
@@ -372,12 +372,22 @@ public class ConfigureScheduler extends HttpServlet {
 				}
 				response.sendRedirect("dashboard.jsp");
 			}
-		} catch (Exception e) {
+		} catch (ServletException e) {
+			response.setStatus(400);
 			if (this.globalTracer != null) {
 				this.globalTracer.error("Failed to configure and schedule job : " + e.getMessage(), e);
 			}
 			request.setAttribute("errorMsg", e.getMessage());
 			request.getRequestDispatcher("configureScheduler.jsp").forward(request, response);
+		
+		} catch (Exception e) {
+			response.setStatus(500);
+			if (this.globalTracer != null) {
+				this.globalTracer.error("Failed to configure and schedule job : " + e.getMessage(), e);
+			}
+			request.setAttribute("errorMsg", e.getMessage());
+			request.getRequestDispatcher("configureScheduler.jsp").forward(request, response);
+		
 		}
 	}
 
