@@ -20,6 +20,7 @@ package com.synclite.jobmonitor.web;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.SQLException;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -75,6 +76,12 @@ public class ValidateDeviceDirectory extends HttpServlet {
 
 			if (! syncLiteDeviceDir.toFile().canWrite()) {
 				throw new ServletException("Specified \"SyncLite Device Directory Path\" does not have write permission");
+			}
+
+			try {
+				MetadataManager.ensureMetadata(syncLiteDeviceDir);
+			} catch (SQLException e) {
+				throw new ServletException("Failed to initialize job monitor metadata file in : " + syncLiteDeviceDir + " : " + e.getMessage(), e);
 			}
 
 			request.getSession().setAttribute("synclite-device-dir", syncLiteDeviceDir.toString());

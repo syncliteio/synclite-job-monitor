@@ -17,7 +17,6 @@
 package com.synclite.jobmonitor.web;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -87,9 +86,9 @@ public class ConfigureScheduler extends HttpServlet {
 				}
 
 				String syncLiteDeviceDir = request.getSession().getAttribute("synclite-device-dir").toString();
-				Path confPath = Path.of(syncLiteDeviceDir, "synclite_job_schedules.json");
-				String schedulerStatsFile = Path.of(syncLiteDeviceDir, "synclite_job_scheduler_statistics.db").toString();
-				initTracer(Path.of(syncLiteDeviceDir));
+				Path syncLiteDeviceDirPath = Path.of(syncLiteDeviceDir);
+				String schedulerStatsFile = syncLiteDeviceDirPath.resolve("synclite_job_scheduler_statistics.db").toString();
+				initTracer(syncLiteDeviceDirPath);
 				
 				setupSchedulerStatsFile(schedulerStatsFile);
 				
@@ -236,9 +235,13 @@ public class ConfigureScheduler extends HttpServlet {
 					jobSchedulesJSONArr.put(jobSchedule.getJSONObject());
 				}
 
-				//Write out configurations to scheduler conf file.
-				
-				writeConfigurations(confPath, jobSchedulesJSONArr);
+				//Persist the schedule set to the job monitor metadata DB.
+				try {
+					MetadataManager.replaceAllSchedules(syncLiteDeviceDirPath, jobSchedulesJSONArr);
+				} catch (Exception e) {
+					globalTracer.error("Failed to persist job schedules to metadata DB : " + e.getMessage(), e);
+					throw new ServletException("Failed to persist job schedules to metadata DB : " + e.getMessage(), e);
+				}
 				
 				Scheduler scheduler = (Scheduler) request.getSession().getAttribute("syncite-job-starter-scheduler");
 				if (scheduler != null) {
@@ -401,15 +404,6 @@ public class ConfigureScheduler extends HttpServlet {
 			return val * 60 * 60;			
 		}
 		return 0;
-	}
-
-	private void writeConfigurations(Path confPath, JSONArray jobSchedulesJSONArr) throws ServletException {
-		try {
-			Files.writeString(confPath, jobSchedulesJSONArr.toString(1));
-		} catch (Exception e) {
-			globalTracer.error("Failed to write configurations to schedules json file : " + confPath + " : " + e.getMessage(), e);
-			throw new ServletException("Failed to write configurations to schedules json file : " + confPath + " : " + e.getMessage(), e);
-		}
 	}
 
 	private final void initTracer(Path workDir) {
