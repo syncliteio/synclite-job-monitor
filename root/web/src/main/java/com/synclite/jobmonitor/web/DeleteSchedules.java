@@ -17,7 +17,6 @@
 package com.synclite.jobmonitor.web;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -69,9 +68,9 @@ public class DeleteSchedules extends HttpServlet {
 				}
 
 				String syncLiteDeviceDir = request.getSession().getAttribute("synclite-device-dir").toString();
-				Path confPath = Path.of(syncLiteDeviceDir, "synclite_job_schedules.json");
+				Path syncLiteDeviceDirPath = Path.of(syncLiteDeviceDir);
 
-				initTracer(Path.of(syncLiteDeviceDir));
+				initTracer(syncLiteDeviceDirPath);
 				
 				Integer numSchedules = InputValidator.requireIntInRange(request, "numSchedules", "numSchedules", 1, 500);
 
@@ -94,7 +93,7 @@ public class DeleteSchedules extends HttpServlet {
 					throw new ServletException("No job schedules selected to delete.");
 				}
 				
-				deleteSchedules(request, confPath, schedulesToDelete);
+				deleteSchedules(request, syncLiteDeviceDirPath, schedulesToDelete);
 				
 				response.sendRedirect("configureScheduler.jsp");
 			}
@@ -118,36 +117,21 @@ public class DeleteSchedules extends HttpServlet {
 	}
 
 	@SuppressWarnings("unchecked")
-	private void deleteSchedules(HttpServletRequest request, Path confPath, ArrayList<Long> schedulesToDelete) throws ServletException {
+	private void deleteSchedules(HttpServletRequest request, Path deviceDir, ArrayList<Long> schedulesToDelete) throws ServletException {
 		try {
-			JSONArray currentSchedules = null;
-			if (Files.exists(confPath)) {
-				currentSchedules = new JSONArray(Files.readString(confPath));
-			} else {
-				throw new ServletException("Schedule configuration file is missing : " + confPath); 
-			}
-			
-			JSONArray newSchedules = new JSONArray();
-			for (int idx = 0 ; idx < currentSchedules.length(); ++idx) {
-				JSONObject scheduleObj = currentSchedules.getJSONObject(idx);
-				
-				if (!schedulesToDelete.contains(scheduleObj.getLong("scheduleID"))) {
-					newSchedules.put(scheduleObj);
-				}
-			}
-			//Write newSchedules to conf file.
-			
-			Files.writeString(confPath, newSchedules.toString(1));
+			MetadataManager.deleteSchedulesByIds(deviceDir, schedulesToDelete);
+
+			JSONArray remaining = MetadataManager.loadAllSchedules(deviceDir);
 
 			//Refresh schedule counts
 			int totalNumSchedules = 0;
-			HashMap<String, JobInfo> jobInfoMap = (HashMap<String, JobInfo>) request.getSession().getAttribute("jobInfoMap");				
+			HashMap<String, JobInfo> jobInfoMap = (HashMap<String, JobInfo>) request.getSession().getAttribute("jobInfoMap");
 			if (jobInfoMap != null) {
 				for (JobInfo ji : jobInfoMap.values()) {
 					ji.numSchedules = 0;
-				}				
-				for (int idx = 0 ; idx < newSchedules.length(); ++idx) {
-					JSONObject scheduleObj = newSchedules.getJSONObject(idx);
+				}
+				for (int idx = 0 ; idx < remaining.length(); ++idx) {
+					JSONObject scheduleObj = remaining.getJSONObject(idx);
 					String key = scheduleObj.getString("jobName") + ":" + scheduleObj.getString("jobType");
 					if (jobInfoMap.containsKey(key)) {
 						++jobInfoMap.get(key).numSchedules;
@@ -157,8 +141,8 @@ public class DeleteSchedules extends HttpServlet {
 				request.getSession().setAttribute("jobInfoMap", jobInfoMap);
 				request.getSession().setAttribute("totalNumSchedules", totalNumSchedules);
 			}
-		} catch(Exception e) {			
-			throw new ServletException("Failed to read/write existing schedule information from file : " + confPath + " : " + e.getMessage(), e);
+		} catch(Exception e) {
+			throw new ServletException("Failed to update schedules in metadata DB at " + deviceDir + " : " + e.getMessage(), e);
 		}
 
 	}

@@ -14,13 +14,11 @@
 
 <%@page import="org.json.JSONObject"%>
 <%@page import="org.json.JSONArray"%>
-<%@page import="java.nio.file.Files"%>
 <%@page import="java.nio.file.Path"%>
-<%@page import="java.io.BufferedReader"%>
-<%@page import="java.io.FileReader"%>
 <%@page import="java.util.HashMap"%>
 <%@page import="java.util.HashSet"%>
 <%@page import="com.synclite.jobmonitor.web.JobSchedule"%>
+<%@page import="com.synclite.jobmonitor.web.MetadataManager"%>
 <%@page import="org.owasp.encoder.Encode"%>
 <%@ page language="java" contentType="text/html; charset=UTF-8"
 	pageEncoding="UTF-8"%>
@@ -58,17 +56,12 @@
 				csrfToken = java.util.UUID.randomUUID().toString();
 				session.setAttribute("csrfToken", csrfToken);
 			}
-			Path confPath = Path.of(syncLiteDeviceDir, "synclite_job_schedules.json");
+			Path syncLiteDeviceDirPath = Path.of(syncLiteDeviceDir);
 			JSONArray jobSchedulesJsonArray = null;
 			try {
-				//Read contents of the scheduler conf file in a json array
-				if (Files.exists(confPath)) {
-					jobSchedulesJsonArray = new JSONArray(Files.readString(confPath));
-				} else {
-					jobSchedulesJsonArray = new JSONArray();
-				}
+				jobSchedulesJsonArray = MetadataManager.loadAllSchedules(syncLiteDeviceDirPath);
 			} catch(Exception e) {
-				out.println("<h4 style=\"color: red;\">Failed to read existing schedule information from file : " + Encode.forHtml(confPath.toString()) + " : " + Encode.forHtml(e.getMessage()) + "</h4>");
+				out.println("<h4 style=\"color: red;\">Failed to read existing schedule information from job monitor metadata DB at : " + Encode.forHtml(syncLiteDeviceDir) + " : " + Encode.forHtml(e.getMessage()) + "</h4>");
 				throw new SkipPageException();
 			}
 

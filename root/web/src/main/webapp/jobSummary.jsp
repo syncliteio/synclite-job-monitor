@@ -33,6 +33,7 @@
 <%@page import="java.io.InputStreamReader"%>
 <%@page import="java.io.IOException"%>
 <%@page import="com.synclite.jobmonitor.web.JobInfo"%>
+<%@page import="com.synclite.jobmonitor.web.MetadataManager"%>
 <%@page import="org.json.JSONObject"%>
 <%@page import="org.json.JSONArray"%>
 <%@page import="org.owasp.encoder.Encode"%>
@@ -258,23 +259,17 @@ function autoRefresh() {
 	            //Try to load schedule info for jobs
 	            int totalNumSchedules = 0;
 				try {
-			        Path confPath = syncliteDeviceDir.resolve("synclite_job_schedules.json");
-					JSONArray jobSchedulesJsonArray = null;
-					//Read contents of the scheduler conf file in a json array
-					if (Files.exists(confPath)) {
-						jobSchedulesJsonArray = new JSONArray(Files.readString(confPath));
-						
-						for (int idx=0; idx < jobSchedulesJsonArray.length(); ++idx) {
-							JSONObject obj = jobSchedulesJsonArray.getJSONObject(idx);
-							
-							String key = obj.getString("jobName") + ":" + obj.getString("jobType");							
-							if (jobInfoMap.containsKey(key)) {
-								++jobInfoMap.get(key).numSchedules;
-								++totalNumSchedules;
-							}
+					JSONArray jobSchedulesJsonArray = MetadataManager.loadAllSchedules(syncliteDeviceDir);
+					for (int idx=0; idx < jobSchedulesJsonArray.length(); ++idx) {
+						JSONObject obj = jobSchedulesJsonArray.getJSONObject(idx);
+
+						String key = obj.getString("jobName") + ":" + obj.getString("jobType");
+						if (jobInfoMap.containsKey(key)) {
+							++jobInfoMap.get(key).numSchedules;
+							++totalNumSchedules;
 						}
-					} 
-				} catch(Exception e) {					
+					}
+				} catch(Exception e) {
 					throw e;
 				}
 
