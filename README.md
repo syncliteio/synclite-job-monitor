@@ -31,7 +31,7 @@ Job Monitor is deployed as part of the standard SyncLite platform release:
 ./deploy.sh && ./start.sh
 ```
 
-Then open: http://localhost:8080/synclite-job-monitor
+Then open: http://localhost:8080/synclite-jobmonitor
 
 ## UI Overview
 
@@ -49,7 +49,7 @@ cd synclite-job-monitor/root
 mvn -Drevision=1.0.0 clean install
 ```
 
-Built WAR: `root/web/target/synclite-jobmonitor-oss.war`
+Built WAR: `root/web/target/synclite-jobmonitor-1.0.0.war`
 
 ## Related Components
 
