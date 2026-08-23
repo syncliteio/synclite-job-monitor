@@ -46,10 +46,10 @@ Then open: http://localhost:8080/synclite-jobmonitor
 
 ```bash
 cd synclite-job-monitor/root
-mvn -Drevision=1.0.0 clean install
+mvn -Drevision=1.1.0 clean install
 ```
 
-Built WAR: `root/web/target/synclite-jobmonitor-1.0.0.war`
+Built WAR: `root/web/target/synclite-jobmonitor-1.1.0.war`
 
 ## Related Components
 
